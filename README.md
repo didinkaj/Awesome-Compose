@@ -1,6 +1,5 @@
-# Awesome Compose [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
+# Awesome Compose
 
-![logo](awesome-compose.jpg)
 
 > A curated list of Docker Compose samples.
 
