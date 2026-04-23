@@ -4,12 +4,17 @@ services:
     container_name: prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.min-block-duration=2h'
+      - '--storage.tsdb.max-block-duration=2h'
     ports:
       - 9090:9090
     restart: unless-stopped
     volumes:
       - ./prometheus:/etc/prometheus
       - prom_data:/prometheus
+    networks:
+      - monitoring
   grafana:
     image: grafana/grafana
     container_name: grafana
@@ -21,6 +26,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=grafana
     volumes:
       - ./grafana:/etc/grafana/provisioning/datasources
+    networks:
+      - monitoring
   thanos-sidecar:
     image: quay.io/thanos/thanos:v0.34.0
     container_name: thanos-sidecar
@@ -34,19 +41,26 @@ services:
       - --tsdb.path=/prometheus
       - --prometheus.url=http://prometheus:9090
       - --objstore.config-file=/etc/thanos/bucket.yml
+      - --grpc-address=0.0.0.0:10903
     ports:
-      - "10902:10902"
+      - "10903:10903"
+    networks:
+      - monitoring
 
   thanos-store:
     image: quay.io/thanos/thanos:v0.34.0
     container_name: thanos-store
     volumes:
       - ./thanos/bucket.yml:/etc/thanos/bucket.yml
+      - ./thanos-data:/data 
     command:
       - store
+      - --data-dir=/data 
       - --objstore.config-file=/etc/thanos/bucket.yml
     ports:
       - "10901:10901"
+    networks:
+      - monitoring
 
   thanos-query:
     image: quay.io/thanos/thanos:v0.34.0
@@ -57,9 +71,11 @@ services:
     command:
       - query
       - --store=thanos-store:10901
-      - --store=thanos-sidecar:10902
+      - --store=thanos-sidecar:10903
     ports:
       - "9091:9090"
+    networks:
+      - monitoring
 
   minio:
     image: minio/minio
@@ -72,6 +88,11 @@ services:
       MINIO_ROOT_PASSWORD: minio123
     ports:
       - "9000:9000"
+    networks:
+      - monitoring
 volumes:
   prom_data:
   minio_data:
+networks:
+  monitoring:
+    driver: bridge
